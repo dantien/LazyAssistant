@@ -68,4 +68,13 @@ You can use these generic tags in your macros, which translate automatically to 
 * `/la alerts` — Manually enables or disables the Execute HUD alerts and warnings.
 * `/la minimap` — Shows or hides the minimap button.
 
+---
+
+## ☕ Support & Credits
+
+* **Author & Developer:** Terje Pettersen
+* **Official Website:** [wow.autonomina.no](https://wow.autonomina.no)
+* **Support:** If you like my WoW addons and want to support further development, server hosting, or buy me a cup of coffee, any support is highly appreciated:
+  👉 **[ko-fi.com/terjepettersen](https://ko-fi.com/terjepettersen)**
+
 *Enjoy your Lazy Life!*

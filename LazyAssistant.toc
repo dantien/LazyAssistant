@@ -1,7 +1,7 @@
 ## Interface: 30300
 ## Title: LazyAssistant
 ## Notes: Modular Multi-Class Macro Engine for WotLK
-## Author: Gemini
+## Author: Terje Pettersen
 ## Version: 5.1
 ## SavedVariables: LazyAssistantDB
 
