@@ -166,6 +166,7 @@ function ns.UI.Init()
     local reset = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
     reset:SetPoint("BOTTOMLEFT", 20, 15)
     reset:SetSize(80, 25)
+    reset:SetText("Reset")
     reset:SetScript("OnClick", function()
         if InCombatLockdown() then return end
         ns.DB.ResetToDefaults()
