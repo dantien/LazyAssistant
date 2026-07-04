@@ -12,12 +12,8 @@ local commonStart = [[
 -- ============================================================================
 ns.Templates["HUNTER"] = {
     [1] = commonStart .. [[
-/petattack
-/petautocastoff [group] Growl; /petautocaston [nogroup] Growl
-/cast [mod:shift, @focus, help][mod:shift, @pet, exists] Misdirection
+/cast [mod:shift, @pet, exists, nodead] Misdirection
 /cast Bestial Wrath
-/cast Rapid Fire
-/cast [target=pettarget,exists] Call of the Wild
 /cast [target=pettarget,exists] Kill Command
 /cast [target=pettarget,exists] Rabid
 /cast [mod:alt, @target, exists, harm] Kill Shot
