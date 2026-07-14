@@ -93,6 +93,116 @@ function ns.Utils.ParseTags(text, class)
     return text
 end
 
+-- 📚 Known Spell Cache
+-- Walks the real spellbook so filtering always matches what the character
+-- can currently actually cast - level, trainer visits, and talent-granted
+-- spells are all reflected automatically, no hardcoded level tables needed.
+local knownSpells = {}
+local hasScannedSpellbook = false
+
+function ns.Utils.RefreshKnownSpells()
+    wipe(knownSpells)
+    for tab = 1, GetNumSpellTabs() do
+        local _, _, offset, numSlots = GetSpellTabInfo(tab)
+        for i = offset + 1, offset + numSlots do
+            local name = GetSpellBookItemName(i, BOOKTYPE_SPELL)
+            if name then knownSpells[name] = true end
+        end
+    end
+    hasScannedSpellbook = true
+end
+
+-- Strips leading [conditions] and a leading ! toggle marker so we're left
+-- with just the bare spell name to check against the spellbook.
+local function ExtractSpellName(segment)
+    local rest = strtrim(segment)
+    while true do
+        local remainder = rest:match("^%[.-%]%s*(.*)$")
+        if not remainder then break end
+        rest = remainder
+    end
+    rest = rest:gsub("^!", "")
+    return strtrim(rest)
+end
+
+-- /cast [cond] SpellA; [cond] SpellB; SpellC  ->  drops only the unknown segments
+local function FilterCastLine(line)
+    local prefix, body = line:match("^(/cast%s+)(.+)$")
+    if not prefix then return line end
+
+    local kept = {}
+    for segment in (body .. ";"):gmatch("(.-);") do
+        local trimmed = strtrim(segment)
+        if trimmed ~= "" then
+            local spellName = ExtractSpellName(trimmed)
+            if spellName == "" or knownSpells[spellName] then
+                table.insert(kept, trimmed)
+            end
+        end
+    end
+
+    if #kept == 0 then return nil end -- every segment was an unknown spell
+    return prefix .. table.concat(kept, "; ")
+end
+
+-- /castsequence [cond] reset=X SpellA, SpellB, SpellC  ->  drops unknown
+-- entries from the sequence while preserving the condition block/reset clause.
+local function FilterCastSequenceLine(line)
+    local body = line:match("^/castsequence%s+(.*)$")
+    if not body then return line end
+
+    local condBlock = ""
+    while true do
+        local cond, remainder = body:match("^(%[.-%])%s*(.*)$")
+        if not cond then break end
+        condBlock = condBlock .. cond .. " "
+        body = remainder
+    end
+
+    local resetPart = ""
+    local resetToken, afterReset = body:match("^(reset=%S+)%s+(.*)$")
+    if resetToken then
+        resetPart = resetToken .. " "
+        body = afterReset
+    end
+
+    local kept = {}
+    for spell in (body .. ","):gmatch("(.-),") do
+        local name = strtrim(spell)
+        if name ~= "" and knownSpells[name] then
+            table.insert(kept, name)
+        end
+    end
+
+    if #kept == 0 then return nil end -- sequence would be empty, drop the line
+    return "/castsequence " .. condBlock .. resetPart .. table.concat(kept, ", ")
+end
+
+-- 🧹 Filters /cast and /castsequence entries for spells the character
+-- doesn't currently know (wrong level, wrong spec, not trained yet).
+-- Runs after ParseTags, so it only ever sees real spell names, never tags.
+function ns.Utils.FilterUnknownSpells(text)
+    if not text or text == "" then return text end
+    -- Safety: if we haven't scanned the spellbook yet, don't filter at all -
+    -- better to show everything than to accidentally wipe out a macro.
+    if not hasScannedSpellbook or not next(knownSpells) then return text end
+
+    local out = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        local trimmedLine = strtrim(line)
+        local result = trimmedLine
+        if trimmedLine:match("^/castsequence") then
+            result = FilterCastSequenceLine(trimmedLine)
+        elseif trimmedLine:match("^/cast%s") then
+            result = FilterCastLine(trimmedLine)
+        end
+        if result then
+            table.insert(out, result)
+        end
+    end
+    return table.concat(out, "\n")
+end
+
 _G.LazyClicks = 0
 function _G.LazyLog(index)
     _G.LazyClicks = _G.LazyClicks + 1
