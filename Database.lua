@@ -48,8 +48,28 @@ end
 -- happens naturally at low levels before someone commits to a build.
 function ns.DB.GetSpecTree()
     local dualSpec = GetActiveTalentGroup() or 1
-    return GetPrimaryTalentTree(false, false, dualSpec)
+    local maxPoints = 0
+    local specTree = nil
+    local isTie = false
+    
+    for i = 1, 3 do
+        local _, _, pointsSpent = GetTalentTabInfo(i, false, false, dualSpec)
+        pointsSpent = pointsSpent or 0
+        if pointsSpent > maxPoints then
+            maxPoints = pointsSpent
+            specTree = i
+            isTie = false
+        elseif pointsSpent == maxPoints and pointsSpent > 0 then
+            isTie = true
+        end
+    end
+    
+    if isTie or maxPoints == 0 then
+        return nil
+    end
+    return specTree
 end
+
 
 -- Templates can be in one of two shapes:
 --   old (undifferentiated):  ns.Templates[class][slot]            = "macro text"

@@ -1,6 +1,10 @@
 local addonName, ns = ...
 ns.Utils = {}
 
+-- Fallback for legacy 3.3.5a client compatibility
+local GetSpellBookItemName = GetSpellBookItemName or GetSpellName
+
+
 -- 🔇 Error Filter & Custom Redirector to "LazyErrors" Chat Tab
 local errorFrame
 local function GetErrorFrame()
