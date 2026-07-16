@@ -9,6 +9,7 @@ e:RegisterEvent("SPELLS_CHANGED")
 e:RegisterEvent("LEARNED_SPELL_IN_TAB")
 e:RegisterEvent("PLAYER_LEVEL_UP")
 e:RegisterEvent("PLAYER_REGEN_ENABLED")
+e:RegisterEvent("UNIT_PET")
 local playerClass = select(2, UnitClass("player"))
 local killShotAlerted = false
 local soonAlerted = false
@@ -69,7 +70,8 @@ e:SetScript("OnEvent", function(self, event, arg1)
             ns.UI.LoadMacro(1)
         end
     elseif event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED"
-        or event == "LEARNED_SPELL_IN_TAB" or event == "PLAYER_LEVEL_UP" then
+        or event == "LEARNED_SPELL_IN_TAB" or event == "PLAYER_LEVEL_UP"
+        or (event == "UNIT_PET" and arg1 == "player") then
         -- Spellbook may have changed (leveled up, trained a spell, logged in) - 
         -- rescan what's known and rebuild the macros to match
         if ns.Utils and ns.Utils.RefreshKnownSpells then
@@ -77,6 +79,9 @@ e:SetScript("OnEvent", function(self, event, arg1)
         end
         if ns.Engine and ns.Engine.UpdateAll then
             ns.Engine.UpdateAll()
+        end
+        if ns.UI and ns.UI.RefreshCurrent then
+            ns.UI.RefreshCurrent()
         end
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Secure buttons can't be touched during combat (InCombatLockdown

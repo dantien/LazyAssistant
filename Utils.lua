@@ -109,6 +109,17 @@ function ns.Utils.RefreshKnownSpells()
             if name then knownSpells[name] = true end
         end
     end
+    -- Pet-taught abilities (pet talents like Rabid) live in a separate
+    -- spellbook and are commanded via /cast from the player, so they need
+    -- to count as "known" too, or lines like [target=pettarget] Rabid
+    -- get wrongly stripped even when the pet genuinely has the talent.
+    local numPetSpells = HasPetSpells()
+    if numPetSpells then
+        for i = 1, numPetSpells do
+            local name = GetSpellBookItemName(i, "pet")
+            if name then knownSpells[name] = true end
+        end
+    end
     hasScannedSpellbook = true
 end
 
@@ -201,6 +212,59 @@ function ns.Utils.FilterUnknownSpells(text)
         end
     end
     return table.concat(out, "\n")
+end
+
+local function CountCastLineSpells(line, counts)
+    local body = line:match("^/cast%s+(.+)$")
+    if not body then return end
+    for segment in (body .. ";"):gmatch("(.-);") do
+        local trimmed = strtrim(segment)
+        if trimmed ~= "" then
+            local spellName = ExtractSpellName(trimmed)
+            if spellName ~= "" then
+                counts.total = counts.total + 1
+                if knownSpells[spellName] then counts.known = counts.known + 1 end
+            end
+        end
+    end
+end
+
+local function CountCastSequenceSpells(line, counts)
+    local body = line:match("^/castsequence%s+(.*)$")
+    if not body then return end
+    while true do
+        local remainder = body:match("^%[.-%]%s*(.*)$")
+        if not remainder then break end
+        body = remainder
+    end
+    local afterReset = body:match("^reset=%S+%s+(.*)$")
+    if afterReset then body = afterReset end
+    for spell in (body .. ","):gmatch("(.-),") do
+        local name = strtrim(spell)
+        if name ~= "" then
+            counts.total = counts.total + 1
+            if knownSpells[name] then counts.known = counts.known + 1 end
+        end
+    end
+end
+
+-- 📊 How many abilities in this macro text are currently castable vs total
+-- referenced. Purely additive/informational - doesn't change what plays,
+-- just gives the UI something honest to show ("5/7 known") without needing
+-- a hardcoded spell-to-level table anywhere.
+function ns.Utils.CountSpellCoverage(text)
+    local counts = { known = 0, total = 0 }
+    if not text or text == "" or not hasScannedSpellbook then return counts.known, counts.total end
+
+    for line in (text .. "\n"):gmatch("(.-)\n") do
+        local trimmedLine = strtrim(line)
+        if trimmedLine:match("^/castsequence") then
+            CountCastSequenceSpells(trimmedLine, counts)
+        elseif trimmedLine:match("^/cast%s") then
+            CountCastLineSpells(trimmedLine, counts)
+        end
+    end
+    return counts.known, counts.total
 end
 
 _G.LazyClicks = 0

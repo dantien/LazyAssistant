@@ -2,7 +2,7 @@
 ## Title: LazyAssistant
 ## Notes: Modular Multi-Class Macro Engine for WotLK
 ## Author: Terje Pettersen
-## Version: 5.2
+## Version: 5.4
 ## SavedVariables: LazyAssistantDB
 
 Utils.lua

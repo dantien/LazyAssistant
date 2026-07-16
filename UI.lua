@@ -15,6 +15,22 @@ local btnLabels = {
     [5] = "BURST"
 }
 
+-- Talent tree names by class, in tab order (1/2/3), purely for display in
+-- the status line. Detection (ns.DB.GetSpecTree) works the same whether or
+-- not a class has spec-specific template content written yet.
+local specTreeNames = {
+    ["HUNTER"]      = { [1] = "Beast Mastery", [2] = "Marksmanship",  [3] = "Survival" },
+    ["WARRIOR"]     = { [1] = "Arms",           [2] = "Fury",         [3] = "Protection" },
+    ["PALADIN"]     = { [1] = "Holy",           [2] = "Protection",   [3] = "Retribution" },
+    ["DEATHKNIGHT"] = { [1] = "Blood",          [2] = "Frost",        [3] = "Unholy" },
+    ["PRIEST"]      = { [1] = "Discipline",     [2] = "Holy",         [3] = "Shadow" },
+    ["MAGE"]        = { [1] = "Arcane",         [2] = "Fire",         [3] = "Frost" },
+    ["WARLOCK"]     = { [1] = "Affliction",     [2] = "Demonology",   [3] = "Destruction" },
+    ["ROGUE"]       = { [1] = "Assassination",  [2] = "Combat",       [3] = "Subtlety" },
+    ["DRUID"]       = { [1] = "Balance",        [2] = "Feral Combat", [3] = "Restoration" },
+    ["SHAMAN"]      = { [1] = "Elemental",      [2] = "Enhancement",  [3] = "Restoration" },
+}
+
 StaticPopupDialogs["LAZY_SHARE"] = {
     text = "Copy and share the LazyAssistant GitHub link!\n(Press Ctrl+C to copy)",
     button1 = "OK",
@@ -94,10 +110,10 @@ function ns.UI.Init()
     title:SetPoint("TOP", 0, -12)
     title:SetText("LazyAssistant v5.1")
 
-    -- Info Text
-    local info = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    info:SetPoint("TOP", 0, -35)
-    info:SetText("Select a macro slot below to edit.")
+    -- Status Text (updates live with detected level + spec)
+    local status = frame:CreateFontString("LazyStatusText", "OVERLAY", "GameFontHighlightSmall")
+    status:SetPoint("TOP", 0, -35)
+    status:SetText("Select a macro slot below to edit.")
 
     -- Button Selectors (1-5)
     local playerClass = select(2, UnitClass("player"))
@@ -262,11 +278,45 @@ function ns.UI.LoadMacro(index)
     currentBtn = index
     local playerClass = select(2, UnitClass("player"))
     local tabName = (LazyAssistantDB and LazyAssistantDB.tabNames and LazyAssistantDB.tabNames[playerClass]) and LazyAssistantDB.tabNames[playerClass][index] or btnLabels[index]
-    editBox:SetText(ns.DB.GetMacro(index))
+    local rawText = ns.DB.GetMacro(index)
+    editBox:SetText(rawText)
     if tabNameBox then
         tabNameBox:SetText(tabName)
     end
-    _G["LazyEditTitle"]:SetText("Editing: " .. tabName)
+
+    -- Coverage: how many abilities in this slot are currently castable
+    -- (parse tags first so @EXECUTE etc. resolve to real spell names before counting)
+    local parsedForCount = ns.Utils.ParseTags(rawText, playerClass)
+    local known, total = ns.Utils.CountSpellCoverage(parsedForCount)
+    if total > 0 then
+        _G["LazyEditTitle"]:SetText(string.format("Editing: %s  |cff888888(%d/%d known)|r", tabName, known, total))
+    else
+        _G["LazyEditTitle"]:SetText("Editing: " .. tabName)
+    end
+
+    -- Status: detected level + spec tree (spec name shown even for classes
+    -- that don't have per-spec template content yet - detection itself
+    -- doesn't depend on that)
+    local statusText = _G["LazyStatusText"]
+    if statusText then
+        local level = UnitLevel("player")
+        local treeNames = specTreeNames[playerClass]
+        local specName = treeNames and treeNames[ns.DB.GetSpecTree()]
+        if specName then
+            statusText:SetText(string.format("Level %d   |cffffd200%s|r", level, specName))
+        else
+            statusText:SetText(string.format("Level %d", level))
+        end
+    end
+end
+
+-- Reloads whichever tab is currently open, without forcing the editor back
+-- to slot 1. Used when level/spellbook/pet changes should refresh the
+-- status line and coverage count but the player might be mid-edit elsewhere.
+function ns.UI.RefreshCurrent()
+    if frame and frame:IsShown() then
+        ns.UI.LoadMacro(currentBtn)
+    end
 end
 
 function ns.UI.Toggle()
