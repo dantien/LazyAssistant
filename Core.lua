@@ -4,6 +4,12 @@ local addonName, ns = ...
 local e = CreateFrame("Frame")
 e:RegisterEvent("ADDON_LOADED")
 e:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+e:RegisterEvent("PLAYER_ENTERING_WORLD")
+e:RegisterEvent("SPELLS_CHANGED")
+e:RegisterEvent("LEARNED_SPELL_IN_TAB")
+e:RegisterEvent("PLAYER_LEVEL_UP")
+e:RegisterEvent("PLAYER_REGEN_ENABLED")
+e:RegisterEvent("UNIT_PET")
 local playerClass = select(2, UnitClass("player"))
 local killShotAlerted = false
 local soonAlerted = false
@@ -41,6 +47,7 @@ end
 e:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == "LazyAssistant" then
         ns.DB.Init()
+        ns.Utils.RefreshKnownSpells()
         ns.Engine.Init()
         ns.UI.Init()
         
@@ -53,11 +60,35 @@ e:SetScript("OnEvent", function(self, event, arg1)
         self:UnregisterEvent("ADDON_LOADED")
         print("|cFF00FF00LazyAssistant v5.1:|r Modular Engine Loaded. Use |cFFFFFF00/la|r")
     elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
+        if ns.Utils and ns.Utils.RefreshKnownSpells then
+            ns.Utils.RefreshKnownSpells()
+        end
         if ns.Engine and ns.Engine.UpdateAll then
             ns.Engine.UpdateAll()
         end
         if LazyAssistantGUI and LazyAssistantGUI:IsShown() and ns.UI.LoadMacro then
             ns.UI.LoadMacro(1)
+        end
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED"
+        or event == "LEARNED_SPELL_IN_TAB" or event == "PLAYER_LEVEL_UP"
+        or (event == "UNIT_PET" and arg1 == "player") then
+        -- Spellbook may have changed (leveled up, trained a spell, logged in) - 
+        -- rescan what's known and rebuild the macros to match
+        if ns.Utils and ns.Utils.RefreshKnownSpells then
+            ns.Utils.RefreshKnownSpells()
+        end
+        if ns.Engine and ns.Engine.UpdateAll then
+            ns.Engine.UpdateAll()
+        end
+        if ns.UI and ns.UI.RefreshCurrent then
+            ns.UI.RefreshCurrent()
+        end
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        -- Secure buttons can't be touched during combat (InCombatLockdown
+        -- blocks it in Engine.UpdateAll). Catch up here in case a level-up
+        -- or spec-related rebuild got skipped while a fight was in progress.
+        if ns.Engine and ns.Engine.UpdateAll then
+            ns.Engine.UpdateAll()
         end
     elseif event == "UNIT_HEALTH" and arg1 == "target" or event == "PLAYER_TARGET_CHANGED" then
         if event == "PLAYER_TARGET_CHANGED" then

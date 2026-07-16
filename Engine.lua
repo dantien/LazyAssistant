@@ -27,10 +27,14 @@ function ns.Engine.UpdateAll()
         -- 2. Parse Smart Tags (@EXECUTE -> Kill Shot)
         local parsed = ns.Utils.ParseTags(raw, playerClass)
         
-        -- 3. Wrap (Auto-Trinket + Silence)
-        local final = ns.Utils.WrapMacro(parsed, i)
+        -- 3. Filter out spells the character doesn't currently know
+        --    (wrong level, wrong spec, not trained yet)
+        local filtered = ns.Utils.FilterUnknownSpells(parsed)
         
-        -- 4. Apply to Secure Button
+        -- 4. Wrap (Auto-Trinket + Silence)
+        local final = ns.Utils.WrapMacro(filtered, i)
+        
+        -- 5. Apply to Secure Button
         buttons[i]:SetAttribute("macrotext", final)
     end
 end

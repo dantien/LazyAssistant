@@ -42,6 +42,54 @@ function ns.DB.Init()
     end
 end
 
+-- Which of the 3 talent trees (1/2/3) has the most points for the currently
+-- active dual-spec slot - e.g. for Hunter that's typically Beast Mastery /
+-- Marksmanship / Survival. Returns nil if points are split evenly, which
+-- happens naturally at low levels before someone commits to a build.
+function ns.DB.GetSpecTree()
+    local dualSpec = GetActiveTalentGroup() or 1
+    local maxPoints = 0
+    local specTree = nil
+    local isTie = false
+    
+    for i = 1, 3 do
+        local _, _, pointsSpent = GetTalentTabInfo(i, false, false, dualSpec)
+        pointsSpent = pointsSpent or 0
+        if pointsSpent > maxPoints then
+            maxPoints = pointsSpent
+            specTree = i
+            isTie = false
+        elseif pointsSpent == maxPoints and pointsSpent > 0 then
+            isTie = true
+        end
+    end
+    
+    if isTie or maxPoints == 0 then
+        return nil
+    end
+    return specTree
+end
+
+
+-- Templates can be in one of two shapes:
+--   old (undifferentiated):  ns.Templates[class][slot]            = "macro text"
+--   new (per spec tree):     ns.Templates[class][tree][slot]      = "macro text"
+-- Classes that haven't been split into per-spec content yet just keep
+-- working exactly as before - only classTemplates[1] being a table signals
+-- that a class has real per-tree content.
+function ns.DB.GetTemplate(index)
+    local classTemplates = ns.Templates[playerClass]
+    if not classTemplates then return "" end
+
+    if type(classTemplates[1]) == "table" then
+        local tree = ns.DB.GetSpecTree()
+        local specTemplates = (tree and classTemplates[tree]) or classTemplates[1]
+        return specTemplates[index] or ""
+    end
+
+    return classTemplates[index] or ""
+end
+
 function ns.DB.GetMacro(index)
     local spec = GetActiveTalentGroup() or 1 -- 1 or 2 (Dual Spec)
     
@@ -54,7 +102,7 @@ function ns.DB.GetMacro(index)
     
     -- Load template if empty
     if not text or text == "" then
-        text = ns.Templates[playerClass][index] or ""
+        text = ns.DB.GetTemplate(index)
     end
     
     return text
